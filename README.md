@@ -6,6 +6,12 @@
 4. [Paste From Pad: Paste pad contents over existing lines](#paste-from-pad)
 5. [Font Validator: Scan for common font-related issues in a muxed MKV](#font-validator)
 
+## Working Font Validator for mkv files
+
+```
+uv tool install git+https://github.com/NiiTRooX/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
+```
+
 ## Merge Scripts
 
 ### Overview
@@ -694,7 +700,7 @@ Alternatively, you can provide a list of directories containing fonts, or indivi
 Install Font Validator with pip:
 
 ```
-pip install --user git+https://github.com/TypesettingTools/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
+pip install --user git+https://github.com/NiiTRooX/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
 ```
 
 This will add a `fontvalidator` executable along with the `fontvalidator.py` Python module.
