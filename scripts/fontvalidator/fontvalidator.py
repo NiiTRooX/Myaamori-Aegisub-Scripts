@@ -462,7 +462,7 @@ May be a Matroska file with fonts attached, a directory containing font files, o
     fonts = FontCollection(fontlist)
     for name, doc in subtitles:
         print(f"Validating track {name}")
-        issues = issues or validate_fonts(doc, fonts, args.ignore_drawings, args.warn_fullname_mismatch)
+        issues = validate_fonts(doc, fonts, args.ignore_drawings, args.warn_fullname_mismatch) or issues
 
     return issues
 
