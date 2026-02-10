@@ -1,3 +1,13 @@
+# Font Validator changes
+
+- This is the only thing that is changed
+- Works properly with mkv files now
+- Continues with remaining subtitle tracks after an issue
+
+```
+uv tool install git+https://github.com/NiiTRooX/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
+```
+
 # Myaamori's Script Collection
 
 1. [Merge Scripts: Bidirectional script merging](#merge-scripts)
@@ -5,12 +15,6 @@
 3. [ASSParser: Parsing ASS files from automations](#assparser)
 4. [Paste From Pad: Paste pad contents over existing lines](#paste-from-pad)
 5. [Font Validator: Scan for common font-related issues in a muxed MKV](#font-validator)
-
-## Working Font Validator for mkv files
-
-```
-uv tool install git+https://github.com/NiiTRooX/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
-```
 
 ## Merge Scripts
 
