@@ -393,6 +393,7 @@ FONT_MIMETYPES = {
     b"application/x-truetype-font",
     b"application/vnd.ms-opentype",
     b"application/x-font-ttf",
+    b"application/x-font-otf",
     b"application/x-font",
     b"application/font-sfnt",
     b"font/collection",
@@ -408,7 +409,7 @@ def get_fonts(mkv):
         for attachments in get_elements(segment, "Attachments"):
             for attachment in get_dicts(attachments, "AttachedFile"):
                 if normalize_mimetype(attachment["FileMimeType"].value) not in FONT_MIMETYPES:
-                    print(f"Ignoring non-font attachment {attachment['FileName'].value}")
+                    print(f"Ignoring non-font attachment {attachment['FileName'].value} ({normalize_mimetype(attachment["FileMimeType"].value).decode()})")
                     continue
 
                 fonts.append((attachment["FileName"].value,
