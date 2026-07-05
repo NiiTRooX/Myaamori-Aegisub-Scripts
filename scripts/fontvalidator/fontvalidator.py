@@ -9,13 +9,16 @@ import pathlib
 import re
 import sys
 import zlib
+from rich.logging import RichHandler
 
 import ass
 import ebmlite
 from fontTools.ttLib import ttFont
 from fontTools.misc import encodingTools
 
-logging.basicConfig(format="%(name)s: %(message)s")
+logging.basicConfig(format="%(name)s: %(message)s", handlers=[RichHandler(markup=True, omit_repeated_times=False, show_path=False, show_time=False)])
+logger = logging.getLogger("fontvalidator")
+logger.setLevel(logging.INFO)
 
 TAG_PATTERN = re.compile(r"\\\s*([^(\\]+)(?<!\s)\s*(?:\(\s*([^)]+)(?<!\s)\s*)?")
 INT_PATTERN = re.compile(r"^[+-]?\d+")
@@ -83,7 +86,7 @@ def parse_tags(s, state, line_style, styles):
                 style = line_style
             else:
                 if (style := styles.get(args[0])) is None:
-                    print(rf"Warning: \r argument {args[0]} does not exist; defaulting to line style")
+                    logger.warning(rf"\r argument {args[0]} does not exist; defaulting to line style")
                     style = line_style
             state = state._replace(font=style.font, italic=style.italic, weight=style.weight)
         elif (args := get_tag("t")) is not None:
@@ -142,7 +145,7 @@ class Font:
 
         mac_italic = self.font["head"].macStyle & 0b10 > 0
         if mac_italic != self.italic:
-            print(f"warning: different italic values in macStyle and fsSelection for font {self.postscript_name}")
+            logger.warning(f"different italic values in macStyle and fsSelection for font {self.postscript_name}")
 
         # fail early if glyph tables can't be accessed
         self.missing_glyphs('')
@@ -163,7 +166,7 @@ class Font:
                     missing.append(c)
             return missing
         else:
-            print(f"warning: could not read glyphs for font {self}")
+            logger.warning(f"warning: could not read glyphs for font {self}")
 
     def __repr__(self):
         return f"{self.postscript_name}(italic={self.italic}, weight={self.weight})"
@@ -180,7 +183,7 @@ class FontCollection:
                     for i in range(1, font.num_fonts):
                         self.fonts.append(Font(f, font_number=i))
             except Exception as e:
-                print(f"Error reading {name}: {e}")
+                logger.error(f"Error reading {name}: {e}")
 
         self.cache = {}
         self.by_full = {name.lower(): font
@@ -236,7 +239,7 @@ def validate_fonts(doc, fonts, ignore_drawings=False, warn_on_exact=False):
         try:
             style = styles[line.style]
         except KeyError:
-            print(f"Warning: Unknown style {line.style} on line {nline}; assuming default style")
+            logger.warning(f"Unknown style {line.style} on line {nline}; assuming default style")
             style = State("Arial", False, 400, False)
 
         for state, text in parse_line(line.text, style, styles):
@@ -267,7 +270,8 @@ def validate_fonts(doc, fonts, ignore_drawings=False, warn_on_exact=False):
                 if len(missing) > 0:
                     report["missing_glyphs_lines"][state.font].add(nline)
 
-    issues = 0
+    errors = 0
+    warnings = 0
 
     def format_lines(lines, limit=10):
         sorted_lines = sorted(lines)
@@ -277,36 +281,40 @@ def validate_fonts(doc, fonts, ignore_drawings=False, warn_on_exact=False):
         return ' '.join(map(str, sorted_lines))
 
     for font, lines in sorted(report["missing_font"].items(), key=lambda x: x[0]):
-        issues += 1
-        print(f"- Could not find font {font} on line(s): {format_lines(lines)}")
+        errors += 1
+        logger.error(f"Could not find font {font} on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
     for (font, reqweight, realweight), lines in sorted(report["faux_bold"].items(), key=lambda x: x[0]):
-        issues += 1
-        print(f"- Faux bold used for font {font} (requested weight {reqweight}, got {realweight}) " \
-              f"on line(s): {format_lines(lines)}")
+        warnings += 1
+        logger.warning(f"Faux bold used for font {font} (requested weight {reqweight}, got {realweight}) on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
     for font, lines in sorted(report["faux_italic"].items(), key=lambda x: x[0]):
-        issues += 1
-        print(f"- Faux italic used for font {font} on line(s): {format_lines(lines)}")
+        warnings += 1
+        logger.warning(f"Faux italic used for font {font} on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
     for (font, reqweight, realweight), lines in sorted(report["mismatch_bold"].items(), key=lambda x: x[0]):
-        issues += 1
-        print(f"- Requested weight {reqweight} but got {realweight} for font {font} " \
-              f"on line(s): {format_lines(lines)}")
+        warnings += 1
+        logger.warning(f"Requested weight {reqweight} but got {realweight} for font {font} on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
     for font, lines in sorted(report["mismatch_italic"].items(), key=lambda x: x[0]):
-        issues += 1
-        print(f"- Requested non-italic but got italic for font {font} on line(s): " + \
-              format_lines(lines))
+        warnings += 1
+        logger.warning(f"Requested non-italic but got italic for font {font} on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
     for font, lines in sorted(report["missing_glyphs_lines"].items(), key=lambda x: x[0]):
-        issues += 1
+        errors += 1
         missing = ' '.join(f'{g}(U+{ord(g):04X})' for g in sorted(report['missing_glyphs'][font]))
-        print(f"- Font {font} is missing glyphs {missing} " \
-              f"on line(s): {format_lines(lines)}")
+        logger.error(f"Font {font} is missing glyphs {missing} on line{'s' if len(lines) != 1 else ''}: {format_lines(lines)}")
 
-    print(f"{issues} issue(s) found")
-    return issues > 0
+    if errors and warnings:
+        logger.error(f"{errors} issue{'s' if errors > 1 else ''} and {warnings} warning{'s' if warnings > 1 else ''} found")
+    elif errors:
+        logger.error(f"{errors} issue{'s' if errors > 1 else ''} found")
+    elif warnings:
+        logger.warning(f"{warnings} warning{'s' if warnings > 1 else ''} found")
+    else:
+        logger.info("No issues found found")
+
+    return (errors + warnings) > 0
 
 
 
@@ -409,7 +417,7 @@ def get_fonts(mkv):
         for attachments in get_elements(segment, "Attachments"):
             for attachment in get_dicts(attachments, "AttachedFile"):
                 if normalize_mimetype(attachment["FileMimeType"].value) not in FONT_MIMETYPES:
-                    print(f"Ignoring non-font attachment {attachment['FileName'].value} ({normalize_mimetype(attachment["FileMimeType"].value).decode()})")
+                    logger.info(f"Ignoring non-font attachment {attachment['FileName'].value} ({normalize_mimetype(attachment["FileMimeType"].value).decode()})")
                     continue
 
                 fonts.append((attachment["FileName"].value,
@@ -462,7 +470,7 @@ May be a Matroska file with fonts attached, a directory containing font files, o
     issues = False
     fonts = FontCollection(fontlist)
     for name, doc in subtitles:
-        print(f"Validating track {name}")
+        logger.info(f"Validating track {name}")
         issues = validate_fonts(doc, fonts, args.ignore_drawings, args.warn_fullname_mismatch) or issues
 
     return issues

@@ -1,10 +1,11 @@
 # Font Validator changes
 
 - This is the only thing that is changed
-- Works properly with mkv files now
+- Works properly with mkv files
 - Continues with remaining subtitle tracks after an issue
+- Colorful logging
 
-```
+```sh
 uv tool install git+https://github.com/NiiTRooX/Myaamori-Aegisub-Scripts/#subdirectory=scripts/fontvalidator
 ```
 
